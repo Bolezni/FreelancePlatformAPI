@@ -7,3 +7,13 @@ application:
       expiration: 3600000
       refresh-token:
         expiration: 252000000
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/freelancePlatformDb
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: admin
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
