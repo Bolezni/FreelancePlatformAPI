@@ -1,6 +1,7 @@
 package org.example.authmodel.controller;
 
 
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -23,41 +24,23 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletResponse response) {
-        ApiResponse<Void> apiResponse;
-        try{
-            authService.login(loginRequest,response);
-            apiResponse = new ApiResponse<>(true, null, "Successful authentication");
-            return ResponseEntity.ok(apiResponse);
-        }catch(Exception e){
-            apiResponse = new ApiResponse<>(false,null,e.getMessage());
-            return ResponseEntity.badRequest().body(apiResponse);
-        }
+    public ResponseEntity<ApiResponse<Void>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletRequest request, HttpServletResponse response) {
+        authService.login(loginRequest, request, response);
+        ApiResponse<Void> apiResponse = new ApiResponse<>(true, null, "Successful login");
+        return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Void>> register(@RequestBody @Valid RegisterRequest registerRequest) {
-        ApiResponse<Void> apiResponse;
-        try{
-            authService.register(registerRequest);
-            apiResponse = new ApiResponse<>(true, null, "Successful registration");
-            return ResponseEntity.ok(apiResponse);
-        }catch(Exception e){
-            apiResponse = new ApiResponse<>(false,null,e.getMessage());
-            return ResponseEntity.badRequest().body(apiResponse);
-        }
+        authService.register(registerRequest);
+        ApiResponse<Void> apiResponse = new ApiResponse<>(true, null, "Successful registration");
+        return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
-        ApiResponse<Void> apiResponse;
-        try{
-            authService.logout(request,response);
-            apiResponse = new ApiResponse<>(true, null, "Successful logout");
-            return ResponseEntity.ok(apiResponse);
-        }catch(Exception e){
-            apiResponse = new ApiResponse<>(false,null,e.getMessage());
-            return ResponseEntity.badRequest().body(apiResponse);
-        }
+        authService.logout(request, response);
+        ApiResponse<Void> apiResponse = new ApiResponse<>(true, null, "Successful logout");
+        return ResponseEntity.ok(apiResponse);
     }
 }

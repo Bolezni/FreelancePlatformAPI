@@ -7,7 +7,7 @@ import org.example.authmodel.dto.RegisterRequest;
 
 public interface AuthService {
 
-    void login(LoginRequest loginRequest, HttpServletResponse response);
+    void login(LoginRequest loginRequest,HttpServletRequest httpServletRequest, HttpServletResponse response);
 
     void register(RegisterRequest registerRequest);
 

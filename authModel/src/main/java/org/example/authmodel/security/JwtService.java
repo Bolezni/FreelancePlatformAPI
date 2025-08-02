@@ -60,7 +60,7 @@ public class JwtService {
                 .compact();
     }
 
-    public String getUserNameFromJwtToken(String token) {
+    public String extractUsername(String token) {
         return getClaims(token, Claims::getSubject);
     }
 
@@ -74,10 +74,9 @@ public class JwtService {
         return !date.before(new Date());
     }
 
-    public boolean isTokenValidate(String token, UserDetails userDetails) {
-        boolean isValid = isTokenExpired(token);
-        String username = getUserNameFromJwtToken(token);
-        return (username.equals(userDetails.getUsername()) && isValid);
+    public boolean isTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsername(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
     private <T> T getClaims(String token, Function<Claims, T> claimsResolver) {

@@ -1,8 +1,8 @@
 package org.example.authmodel.service.impl;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.authmodel.dto.LoginRequest;
@@ -12,6 +12,7 @@ import org.example.authmodel.repository.UserRepository;
 import org.example.authmodel.security.CustomUserDetails;
 import org.example.authmodel.security.JwtService;
 import org.example.authmodel.service.AuthService;
+import org.example.authmodel.utils.CookieUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,6 +20,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-
+    private static final String DEFAULT_CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -35,7 +40,7 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
-    public void login(LoginRequest loginRequest, HttpServletResponse response) {
+    public void login(LoginRequest loginRequest, HttpServletRequest httpServletRequest, HttpServletResponse response) {
         if (loginRequest == null) {
             throw new IllegalArgumentException("loginRequest cannot be null");
         }
@@ -44,27 +49,24 @@ public class AuthServiceImpl implements AuthService {
                 loginRequest.username(),
                 loginRequest.password()
         ));
+        System.out.println("Method Login, username: " + loginRequest.username());
 
         CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(loginRequest.username());
 
         String jwtToken = jwtService.createJwtToken(userDetails);
         String refreshToken = jwtService.createJwtTokenRefreshToken(userDetails);
 
+        HttpSession session = httpServletRequest.getSession(true);
 
-        ResponseCookie cookieJwtToken = ResponseCookie.from(jwtService.getTokenName())
-                .value(jwtToken)
-                .maxAge(jwtService.getTokenExpiration())
-                .path("/")
-                .build();
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                SecurityContextHolder.getContext());
 
-        ResponseCookie cookieRefreshToken = ResponseCookie.from(jwtService.getRefreshToken())
-                .value(refreshToken)
-                .maxAge(jwtService.getRefreshTokenExpiration())
-                .path("/")
-                .build();
+        CsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        CsrfToken csrfToken = csrfTokenRepository.generateToken(httpServletRequest);
+        csrfTokenRepository.saveToken(csrfToken, httpServletRequest, response);
 
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieJwtToken.toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieRefreshToken.toString());
+        CookieUtils.addCookie(response, jwtService.getTokenName(), jwtToken, jwtService.getTokenExpiration());
+        CookieUtils.addCookie(response, jwtService.getRefreshToken(), refreshToken, jwtService.getTokenExpiration());
     }
 
     @Override
@@ -77,6 +79,8 @@ public class AuthServiceImpl implements AuthService {
 
         String username = registerRequest.username();
         String email = registerRequest.email();
+
+        System.out.println("Method Register, username: " + username);
 
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exist");
@@ -99,31 +103,34 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response) {
-        Cookie[] cookies = request.getCookies();
+        log.info("Starting logout process");
 
-        boolean isJwtTokenRemove = false;
-        boolean isRefreshTokenRemove = false;
+        invalidToken(jwtService.getTokenName(), response);
+        invalidToken(jwtService.getRefreshToken(), response);
 
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(jwtService.getTokenName())) {
-                invalidToken(jwtService.getTokenName(), response);
-                isJwtTokenRemove = true;
+        invalidToken(DEFAULT_CSRF_COOKIE_NAME, response);
+
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            String sessionId = session.getId();
+            log.debug("Invalidating session: {}", sessionId);
+
+            try {
+                session.invalidate();
+                log.debug("Session invalidated successfully: {}", sessionId);
+            } catch (IllegalStateException e) {
+                log.debug("Session already invalidated: {}", sessionId);
             }
-            if (cookie.getName().equals(jwtService.getRefreshToken())) {
-                invalidToken(jwtService.getRefreshToken(), response);
-                isRefreshTokenRemove = true;
-            }
-        }
-
-        if (!isJwtTokenRemove || !isRefreshTokenRemove) {
-            log.warn("Jwt or Refresh token cookie not found during logout ");
         }
 
         SecurityContextHolder.clearContext();
+
+        log.info("Logout completed successfully");
     }
 
     private void invalidToken(String name, HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(name)
+                .value("")
                 .maxAge(0)
                 .path("/")
                 .secure(true)
