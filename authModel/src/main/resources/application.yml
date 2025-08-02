@@ -1,12 +1,3 @@
-application:
-  security:
-    jwt:
-      token-name: access_token
-      refreshToken-name: refresh_token
-      secret-ket: 68497dfcbb50149ae2747d1b8e4fdc5996722059d65776b6c5e4179d388c95c6
-      expiration: 3600000
-      refresh-token:
-        expiration: 252000000
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/freelancePlatformDb

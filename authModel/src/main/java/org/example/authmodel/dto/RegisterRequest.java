@@ -1,8 +1,11 @@
 package org.example.authmodel.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-public record RegisterRequest (
+import java.util.Set;
+
+public record RegisterRequest(
         @NotBlank
         String firstname,
         @NotBlank
@@ -12,6 +15,8 @@ public record RegisterRequest (
         @NotBlank
         String username,
         @NotBlank
-        String password
-){
+        String password,
+        @NotNull
+        Set<String> roles
+) {
 }

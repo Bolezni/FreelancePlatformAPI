@@ -1,13 +1,13 @@
 package org.example.authmodel.controller;
 
 
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.authmodel.dto.ApiResponse;
 import org.example.authmodel.dto.LoginRequest;
+import org.example.authmodel.dto.LoginResponse;
 import org.example.authmodel.dto.RegisterRequest;
 import org.example.authmodel.service.AuthService;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +24,9 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletRequest request, HttpServletResponse response) {
-        authService.login(loginRequest, request, response);
-        ApiResponse<Void> apiResponse = new ApiResponse<>(true, null, "Successful login");
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletRequest request, HttpServletResponse response) {
+        LoginResponse loginResponse = authService.login(loginRequest, request, response);
+        ApiResponse<LoginResponse> apiResponse = new ApiResponse<>(true, loginResponse, "Successful login");
         return ResponseEntity.ok(apiResponse);
     }
 
@@ -36,6 +36,7 @@ public class AuthController {
         ApiResponse<Void> apiResponse = new ApiResponse<>(true, null, "Successful registration");
         return ResponseEntity.ok(apiResponse);
     }
+
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
