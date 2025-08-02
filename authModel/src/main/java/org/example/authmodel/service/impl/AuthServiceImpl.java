@@ -9,6 +9,7 @@ import org.example.authmodel.dto.LoginRequest;
 import org.example.authmodel.dto.RegisterRequest;
 import org.example.authmodel.model.UserEntity;
 import org.example.authmodel.repository.UserRepository;
+import org.example.authmodel.security.CsrfTokenService;
 import org.example.authmodel.security.CustomUserDetails;
 import org.example.authmodel.security.JwtService;
 import org.example.authmodel.service.AuthService;
@@ -20,10 +21,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,10 +34,10 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
-
+    private final CsrfTokenService csrfTokenService;
 
     @Override
-    public void login(LoginRequest loginRequest, HttpServletRequest httpServletRequest, HttpServletResponse response) {
+    public void login(LoginRequest loginRequest, HttpServletRequest request, HttpServletResponse response) {
         if (loginRequest == null) {
             throw new IllegalArgumentException("loginRequest cannot be null");
         }
@@ -49,21 +46,13 @@ public class AuthServiceImpl implements AuthService {
                 loginRequest.username(),
                 loginRequest.password()
         ));
-        System.out.println("Method Login, username: " + loginRequest.username());
 
         CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(loginRequest.username());
 
         String jwtToken = jwtService.createJwtToken(userDetails);
         String refreshToken = jwtService.createJwtTokenRefreshToken(userDetails);
 
-        HttpSession session = httpServletRequest.getSession(true);
-
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-                SecurityContextHolder.getContext());
-
-        CsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        CsrfToken csrfToken = csrfTokenRepository.generateToken(httpServletRequest);
-        csrfTokenRepository.saveToken(csrfToken, httpServletRequest, response);
+        csrfTokenService.generateAndSaveToken(request, response);
 
         CookieUtils.addCookie(response, jwtService.getTokenName(), jwtToken, jwtService.getTokenExpiration());
         CookieUtils.addCookie(response, jwtService.getRefreshToken(), refreshToken, jwtService.getTokenExpiration());
@@ -79,8 +68,6 @@ public class AuthServiceImpl implements AuthService {
 
         String username = registerRequest.username();
         String email = registerRequest.email();
-
-        System.out.println("Method Register, username: " + username);
 
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exist");
